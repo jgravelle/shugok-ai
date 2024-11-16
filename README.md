@@ -2,6 +2,9 @@
 
 Shugok-AI is a Streamlit-based web application that makes AI research papers from arXiv more accessible by simplifying their academic language into clear, everyday terms. The application uses a local LLM to transform complex academic writing into concise, easy-to-understand summaries.
 
+![image](https://github.com/user-attachments/assets/f321a8e0-6c04-41f9-8271-94ca24a2bd0d)
+
+
 ## Features
 
 - **Real-time arXiv Scraping**: Fetches the latest papers from arXiv's CS.AI category
