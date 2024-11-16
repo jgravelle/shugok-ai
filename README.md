@@ -14,6 +14,9 @@ Shugok-AI is a Streamlit-based web application that makes AI research papers fro
 - **PDF Access**: Direct links to original PDF papers on arXiv
 - **User-Friendly Interface**: Clean, responsive Streamlit interface with real-time updates
 
+![image](https://github.com/user-attachments/assets/a65f8757-c9d2-44d4-b6b1-b836cf159572)
+
+
 ## Requirements
 
 - Python 3.7+
