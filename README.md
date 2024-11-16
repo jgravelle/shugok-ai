@@ -27,7 +27,7 @@ Shugok-AI is a Streamlit-based web application that makes AI research papers fro
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/shugok-ai.git
+git clone https://github.com/jgravelle/shugok-ai.git
 cd shugok-ai
 ```
 
