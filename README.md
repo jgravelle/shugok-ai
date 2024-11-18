@@ -57,7 +57,6 @@ streamlit run app.py
 2. **Processing Pipeline**:
    - Extracts titles and abstracts from arXiv
    - Sends text to local LLM for simplification
-   - Ensures summaries are exactly two sentences long
    - Stores processed articles in JSON format
 3. **Caching System**: 
    - Maintains a record of processed articles

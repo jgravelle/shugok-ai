@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 
 class LocalLLMProvider:
     def __init__(self, api_url="http://127.0.0.1:1234"):
@@ -7,6 +8,19 @@ class LocalLLMProvider:
         self.headers = {
             "Content-Type": "application/json"
         }
+        self.cleanup_patterns = [
+            r"Note:.*$",
+            r"I've.*$",
+            r"Here's.*$",
+            r"This summary.*$",
+            r"In this simplified version.*$",
+            r"<[^>]+>",  # Remove HTML tags
+            r"\[.*?\]",  # Remove square brackets
+            r"\{.*?\}",  # Remove curly braces
+            r"I made the following changes.*$",
+            r"I simplified.*$",
+            r"To make this accessible.*$"
+        ]
 
     def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=-1):
         """Generate text using the local LLM."""
@@ -45,46 +59,48 @@ class LocalLLMProvider:
         except (KeyError, json.JSONDecodeError) as e:
             raise ValueError(f"Invalid response from local LLM: {str(e)}")
 
+    def clean_output(self, text):
+        """Clean up LLM output by removing unwanted patterns."""
+        cleaned = text
+        for pattern in self.cleanup_patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.MULTILINE|re.DOTALL)
+        return cleaned.strip()
+
     def simplify_text(self, title, summary):
-        """
-        Use the local LLM to simplify academic text into concise, layman's terms.
-        """
-        system_prompt = """
-        You are an expert at simplifying complex academic language into clear, everyday terms.
-        Follow these rules strictly:
-        1. Remove ALL technical jargon and academic terminology
-        2. Use simple, everyday language a high school student would understand
-        3. Make titles clear and direct
-        4. Keep summaries to exactly two clear, concise sentences
-        5. Do not use phrases like "this paper" or "the authors"
-        6. Focus on what was done and what was found
-        7. Do not tell readers to imagine anything or what to think
-        8. Keep the original meaning intact while making it accessible
-        """
-        
-        prompt = f"""
-        Rewrite this title and summary in the simplest possible terms for a general audience.
-        Give me just the simplified title and two-sentence summary with no extra text.
-        
-        Original Title: {title}
-        Original Summary: {summary}
+        """Use the local LLM to simplify academic text into concise, layman's terms."""
+        system_prompt = """You are an expert at simplifying complex academic language into clear, everyday terms.
+Your response must follow this exact format:
+TITLE: [concise title in plain language]
+SUMMARY: [clear explanation of the research]
 
-        Example response format:
-        TITLE: How AI Can Learn from Its Mistakes
-        SUMMARY: A new method helps AI systems understand and fix their own errors without human help. This improvement makes AI more reliable and reduces the need for constant human supervision.
+Rules:
+1. Remove ALL technical jargon and academic terminology
+2. Use simple, everyday language a high school student would understand
+3. Make titles clear, direct, and under 12 words
+4. Never use phrases like "this paper" or "the authors"
+5. Focus on what was done and what was found
+6. Do not tell readers to imagine anything or what to think
+7. Keep the original meaning intact while making it accessible
+8. Make the text engaging and informative
+9. Never add explanations about the changes made or your process
+10. Never use HTML tags or special formatting
+11. Use active voice and present tense
+12. Write directly about the research, not about the paper"""
+        
+        prompt = f"""Rewrite this title and summary for a general audience without being condescending.
+Assume the audience can understand complex ideas if explained clearly.
 
-        Your simplified version:
-        """
+Original Title: {title}
+Original Summary: {summary}
+
+Your simplified version:"""
         
         response = self.generate(prompt, system_prompt=system_prompt, temperature=0.3)
         
-        # Extract simplified title and summary using the same format
-        import re
         title_match = re.search(r'TITLE:\s*(.*?)(?=SUMMARY:|$)', response, re.DOTALL)
         summary_match = re.search(r'SUMMARY:\s*(.*?)$', response, re.DOTALL)
         
         if not title_match or not summary_match:
-            # If the format isn't correct, try to force a clean-up
             response = self.cleanup_response(title, summary, response)
             title_match = re.search(r'TITLE:\s*(.*?)(?=SUMMARY:|$)', response, re.DOTALL)
             summary_match = re.search(r'SUMMARY:\s*(.*?)$', response, re.DOTALL)
@@ -92,49 +108,32 @@ class LocalLLMProvider:
         simplified_title = title_match.group(1).strip() if title_match else title
         simplified_summary = summary_match.group(1).strip() if summary_match else summary
         
-        # Final validation and cleanup
-        if len(simplified_title.split()) > 15:  # Title too long
+        # Clean both outputs
+        simplified_title = self.clean_output(simplified_title)
+        simplified_summary = self.clean_output(simplified_summary)
+        
+        # Title length check
+        if len(simplified_title.split()) > 12:
             simplified_title = self.shorten_title(simplified_title)
-            
-        if len(simplified_summary.split('.')) > 2:  # Too many sentences
-            simplified_summary = self.limit_sentences(simplified_summary)
         
         return simplified_title, simplified_summary
 
     def cleanup_response(self, original_title, original_summary, response):
         """Force cleanup of malformed response."""
-        cleanup_prompt = f"""
-        Reformat this simplified text into the exact format shown:
-        TITLE: [single line title]
-        SUMMARY: [exactly two sentences]
+        cleanup_prompt = """Format this text exactly as shown:
+TITLE: [single line title]
+SUMMARY: [explanation in plain language]
 
-        Text to format:
-        {response}
-        """
+Text to format:
+{response}"""
+        
         cleaned = self.generate(cleanup_prompt, temperature=0.1)
         if 'TITLE:' not in cleaned or 'SUMMARY:' not in cleaned:
-            # If still malformed, fall back to original with markers
             return f"TITLE: {original_title}\nSUMMARY: {original_summary}"
         return cleaned
 
     def shorten_title(self, title):
         """Shorten a title that's too long."""
-        shorten_prompt = f"""
-        Make this title shorter and simpler while keeping the main point:
-        {title}
-        """
-        return self.generate(shorten_prompt, temperature=0.1).strip()
-
-    def limit_sentences(self, summary):
-        """Ensure summary is exactly two sentences."""
-        sentences = summary.split('.')
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if len(sentences) <= 2:
-            return summary
-        
-        combine_prompt = f"""
-        Combine this information into exactly two clear sentences:
-        {summary}
-        """
-        two_sentences = self.generate(combine_prompt, temperature=0.1)
-        return two_sentences.strip()
+        shorten_prompt = f"Make this title shorter and simpler while keeping the main point:\n{title}"
+        shortened = self.generate(shorten_prompt, temperature=0.1)
+        return self.clean_output(shortened)
