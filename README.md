@@ -1,9 +1,8 @@
 # Shugok-AI: AI Research Papers Simplified
 
-Shugok-AI is a Streamlit-based web application that makes AI research papers from arXiv more accessible by simplifying their academic language into clear, everyday terms. The application uses a local LLM to transform complex academic writing into concise, easy-to-understand summaries.
+Shugok-AI is a Streamlit-based web application that makes AI research papers from arXiv more accessible by simplifying their academic language into clear, everyday terms. The application uses a local LLM to transform complex academic writing into concise, easy-to-understand summaries, and automatically publishes results to a static website.
 
 ![image](https://github.com/user-attachments/assets/f321a8e0-6c04-41f9-8271-94ca24a2bd0d)
-
 
 ## Features
 
@@ -13,14 +12,17 @@ Shugok-AI is a Streamlit-based web application that makes AI research papers fro
 - **Search Functionality**: Search through both new and previously processed articles
 - **PDF Access**: Direct links to original PDF papers on arXiv
 - **User-Friendly Interface**: Clean, responsive Streamlit interface with real-time updates
+- **Automatic Publishing**: Generates and publishes a static HTML website via FTP
+- **Responsive Design**: Mobile-friendly layout with dark mode support
+- **Real-time Processing Updates**: Shows live progress as articles are processed
 
 ![image](https://github.com/user-attachments/assets/a65f8757-c9d2-44d4-b6b1-b836cf159572)
-
 
 ## Requirements
 
 - Python 3.7+
 - Local LLM server running on port 1234 (compatible with OpenAI API format)
+- FTP server credentials for publishing
 - Required Python packages listed in `requirements.txt`
 
 ## Installation
@@ -38,6 +40,13 @@ pip install -r requirements.txt
 
 3. Ensure your local LLM server is running on http://127.0.0.1:1234
 
+4. Configure FTP settings in app.py:
+```python
+FTP_HOST = "your.ftp.host"
+FTP_USER = "your_username"
+FTP_PASS = "your_password"
+```
+
 ## Usage
 
 1. Start the Streamlit application:
@@ -47,9 +56,12 @@ streamlit run app.py
 
 2. Open your web browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
 
-3. The application will automatically start fetching and processing recent AI papers
+3. Click "Process Articles" to start fetching and processing recent AI papers
 
-4. Use the search box to filter articles based on titles and summaries
+4. The application will:
+   - Fetch and process recent papers from arXiv
+   - Generate a static HTML website
+   - Automatically publish to your configured FTP server
 
 ## How It Works
 
@@ -57,7 +69,8 @@ streamlit run app.py
 2. **Processing Pipeline**:
    - Extracts titles and abstracts from arXiv
    - Sends text to local LLM for simplification
-   - Stores processed articles in JSON format
+   - Generates responsive HTML with dark mode support
+   - Publishes results via FTP
 3. **Caching System**: 
    - Maintains a record of processed articles
    - Avoids reprocessing previously simplified papers
@@ -65,9 +78,9 @@ streamlit run app.py
 
 ## Project Structure
 
-- `app.py`: Main Streamlit application and arXiv scraping logic
+- `app.py`: Main Streamlit application, arXiv scraping, and FTP publishing logic
 - `local_llm.py`: LLM integration for text simplification
-- `processed_articles.json`: Cache of processed articles
+- `template.html`: HTML template for generated static website
 - `requirements.txt`: Python package dependencies
 
 ## Technical Details
@@ -77,13 +90,15 @@ streamlit run app.py
 - Handles connection errors and malformed responses
 - Provides real-time processing status updates
 - Supports concurrent user sessions
+- Generates responsive HTML with dark mode detection
+- Automated FTP publishing workflow
 
 ## Notes
 
 - The application requires a running local LLM server that's compatible with the OpenAI API format
 - Processing time depends on the LLM server's performance and arXiv's response time
 - Respects arXiv's robot policy with appropriate delays between requests
-- Stores processed articles locally for faster subsequent access
+- FTP credentials must be configured before publishing will work
 
 ## Error Handling
 
@@ -93,6 +108,7 @@ The application includes comprehensive error handling for:
 - Malformed responses
 - Rate limiting
 - Invalid article formats
+- FTP connection and upload failures
 
 ## Contributing
 
