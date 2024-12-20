@@ -3,8 +3,9 @@ import json
 import re
 
 class LocalLLMProvider:
-    def __init__(self, api_url="http://127.0.0.1:1234"):
+    def __init__(self, api_url="http://127.0.0.1:1234", local_llm_type="local_llm"):
         self.api_url = api_url
+        self.local_llm_type = local_llm_type
         self.headers = {
             "Content-Type": "application/json"
         }
@@ -22,7 +23,7 @@ class LocalLLMProvider:
             r"To make this accessible.*$"
         ]
 
-    def generate(self, prompt, system_prompt=None, temperature=0.7, max_tokens=-1):
+    def generateLocal(self, prompt, system_prompt=None, temperature=0.7, max_tokens=-1):
         """Generate text using the local LLM."""
         messages = []
         
@@ -58,7 +59,38 @@ class LocalLLMProvider:
             raise ConnectionError(f"Failed to connect to local LLM: {str(e)}")
         except (KeyError, json.JSONDecodeError) as e:
             raise ValueError(f"Invalid response from local LLM: {str(e)}")
-
+    def generateOllama(self, prompt, system_prompt=None, temperature=0.7, max_tokens=-1):
+        """Generate text using the local LLM via Ollama."""
+        data = {
+            "model": "llama3.2",  # Adjust model name as needed
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": temperature
+            }
+        }
+        
+        # Add system prompt if provided
+        if system_prompt:
+            data["system"] = system_prompt
+        
+        # Add max_tokens if specified (Ollama uses 'num_predict')
+        if max_tokens > 0:
+            data["options"]["num_predict"] = max_tokens
+        
+        try:
+            response = requests.post(
+                f"{self.api_url}/api/generate",
+                headers=self.headers,
+                json=data
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["response"]
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Failed to connect to local LLM: {str(e)}")
+        except (KeyError, json.JSONDecodeError) as e:
+            raise ValueError(f"Invalid response from local LLM: {str(e)}")
     def clean_output(self, text):
         """Clean up LLM output by removing unwanted patterns."""
         cleaned = text
@@ -95,8 +127,12 @@ Original Summary: {summary}
 
 Your simplified version:"""
         
-        response = self.generate(prompt, system_prompt=system_prompt, temperature=0.3)
-        
+        response = ""
+        if self.local_llm_type == "local_llm":
+            response = self.generateLocal(prompt, system_prompt=system_prompt, temperature=0.3)
+        else:
+            response = self.generateOllama(prompt, system_prompt=system_prompt, temperature=0.3)
+
         title_match = re.search(r'TITLE:\s*(.*?)(?=SUMMARY:|$)', response, re.DOTALL)
         summary_match = re.search(r'SUMMARY:\s*(.*?)$', response, re.DOTALL)
         
@@ -127,7 +163,11 @@ SUMMARY: [explanation in plain language]
 Text to format:
 {response}"""
         
-        cleaned = self.generate(cleanup_prompt, temperature=0.1)
+        cleaned = ""
+        if self.local_llm_type == "local_llm":
+            cleaned = self.generateLocal(cleanup_prompt, temperature=0.1)
+        else:
+            cleaned = self.generateOllama(cleanup_prompt, temperature=0.1)
         if 'TITLE:' not in cleaned or 'SUMMARY:' not in cleaned:
             return f"TITLE: {original_title}\nSUMMARY: {original_summary}"
         return cleaned
@@ -135,5 +175,9 @@ Text to format:
     def shorten_title(self, title):
         """Shorten a title that's too long."""
         shorten_prompt = f"Make this title shorter and simpler while keeping the main point:\n{title}"
-        shortened = self.generate(shorten_prompt, temperature=0.1)
+        shortened = ""
+        if  self.local_llm_type == "local_llm":
+            shortened = self.generateLocal(shorten_prompt, temperature=0.1)
+        else:
+            shortened = self.generateOllama(shorten_prompt, temperature=0.1)
         return self.clean_output(shortened)
